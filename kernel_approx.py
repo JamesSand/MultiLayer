@@ -114,8 +114,11 @@ def approx_attention_output(q, k, v, order_list=[]):
 def actual_attention_output(q, k, v):
     attn_weights = torch.matmul(q, k.transpose(2, 3)) 
 
+    attn_weights = torch.exp(attn_weights)
+
     b, h, n, _ = attn_weights.shape
-    attn_weights_norm = torch.matmul(k.transpose(2, 3), torch.ones((b, h, n, 1), dtype=q.dtype, device=q.device))
+    # b, h, n, 1
+    attn_weights_norm = torch.matmul(attn_weights, torch.ones((b, h, n, 1), dtype=q.dtype, device=q.device))
 
     attn_weights = attn_weights / attn_weights_norm.transpose(2, 3)
 
@@ -126,8 +129,9 @@ def actual_attention_output(q, k, v):
 if __name__ == "__main__":
     b, h, n, d = 1, 1, 10000, 8
     n_list = [2**10, 2**11, 2**12, 2**13]
-    # d_list = [2,4,6,8,10,12]
-    d_list = [8,9,10,11,12]
+    d_list = [4,6,8,10,12]
+    # d_list = [8,9,10,11,12]
+    d_list = [4,5,6,7,8,9,10,11,12]
     # d_list = [13]
     # d_list = [2,4,6,8]
     dtype = torch.float32
@@ -142,12 +146,13 @@ if __name__ == "__main__":
         # q = torch.randn(b, h, n, d, dtype=dtype).cuda() / d ** 0.5
         # k = torch.randn(b, h, n, d, dtype=dtype).cuda() / d ** 0.5
         # v = torch.randn(b, h, n, d, dtype=dtype).cuda()
+
         q = torch.randn(b, h, n, d, dtype=dtype) / d ** 0.5
         k = torch.randn(b, h, n, d, dtype=dtype) / d ** 0.5
         v = torch.randn(b, h, n, d, dtype=dtype) 
 
 
-        error_0 = softmax_approx_error(q, k, order_list=[d,d])
+        # error_0 = softmax_approx_error(q, k, order_list=[d,d])
 
 
         time1 = time.time()
@@ -168,4 +173,6 @@ if __name__ == "__main__":
 
         actual_time = time2 - time1
         approx_time = time3 - time2
-        print(n, error_0, error_1, actual_time, approx_time)
+
+        print(f"dim:{d}\trelative_error:{error_1.item():.5f}\tactual:{actual_time:.5f}s\tour:{approx_time:.5f}s")
+        # print(d, error_0, error_1, actual_time, approx_time)
