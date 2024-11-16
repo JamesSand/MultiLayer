@@ -113,7 +113,10 @@ def approx_attention_output(q, k, v, order_list=[]):
 
 def actual_attention_output(q, k, v):
     attn_weights = torch.matmul(q, k.transpose(2, 3)) 
-    attn_weights = nn.functional.softmax(attn_weights, dim=-1)
+
+    # attn_weights_norm = torch.matmul(attn_weights, torch.ones())
+
+    # attn_weights = nn.functional.softmax(attn_weights, dim=-1)
 
     attn_output = torch.matmul(attn_weights, v)
 
@@ -123,7 +126,9 @@ if __name__ == "__main__":
     b, h, n, d = 1, 1, 10000, 8
     n_list = [2**10, 2**11, 2**12, 2**13]
     # d_list = [2,4,6,8,10,12]
-    d_list = [2,4,6,8]
+    d_list = [8,9,10,11,12]
+    # d_list = [13]
+    # d_list = [2,4,6,8]
     dtype = torch.float32
     seeds = [0,1,2]
 
