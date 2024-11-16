@@ -63,6 +63,7 @@ def poly_approx(q, k, order_list=[]):
     return q_approx, k_approx
 
 def softmax_approx_error(q, k, order_list=[]):
+
     attn_weights = torch.matmul(q, k.transpose(2, 3)) 
     attn_weights = nn.functional.softmax(attn_weights, dim=-1)
 
@@ -70,7 +71,16 @@ def softmax_approx_error(q, k, order_list=[]):
 
     attn_weights_approx = torch.matmul(q_approx, k_approx.transpose(2, 3))
     
-    attn_norm_approx = torch.sum(attn_weights_approx, dim=-1, keepdim=True)
+    # attn_norm_approx = torch.sum(attn_weights_approx, dim=-1, keepdim=True)
+
+    b, h, n, r = q_approx.shape
+    attn_norm_approx_2 = torch.matmul(k_approx.transpose(2, 3), torch.ones((b, h, n, 1), dtype=q_approx.dtype, device=q_approx.device))
+    attn_norm_approx_2 = torch.matmul(q_approx, attn_norm_approx_2)
+
+    # b, h, n, 1
+    attn_norm_approx = attn_norm_approx_2
+
+
     attn_weights_approx = attn_weights_approx / attn_norm_approx
     return relative_error(attn_weights, attn_weights_approx, p='fro', dim=(-1,-2))
 
@@ -80,10 +90,40 @@ def get_total_order_dim(order_list=[]):
         dim += r ** (i+1)
     return dim
 
+def approx_attention_output(q, k, v, order_list=[]):
+    # b, h, n, r where r greater than d, but small than n
+    q_approx, k_approx = poly_approx(q, k, order_list=order_list)
+    b, h, n, r = q_approx.shape
+    attn_norm_approx = torch.matmul(k_approx.transpose(2, 3), torch.ones((b, h, n, 1), dtype=q_approx.dtype, device=q_approx.device))
+    attn_norm_approx = torch.matmul(q_approx, attn_norm_approx)
+
+    # # b, h, n, 1
+    # attn_norm_approx = attn_norm_approx_2
+
+    # b, h, n, r
+    k_approx = k_approx / attn_norm_approx
+
+    # b, h, r, d
+    kv_approx = torch.matmul(k_approx.transpose(2, 3), v)
+
+    # b, h, n, d
+    approx_attn_output = torch.matmul(q_approx, kv_approx)
+
+    return approx_attn_output
+
+def actual_attention_output(q, k, v):
+    attn_weights = torch.matmul(q, k.transpose(2, 3)) 
+    attn_weights = nn.functional.softmax(attn_weights, dim=-1)
+
+    attn_output = torch.matmul(attn_weights, v)
+
+    return attn_output
+
 if __name__ == "__main__":
     b, h, n, d = 1, 1, 10000, 8
     n_list = [2**10, 2**11, 2**12, 2**13]
-    d_list = [2,4,6,8,10,12]
+    # d_list = [2,4,6,8,10,12]
+    d_list = [2,4,6,8]
     dtype = torch.float32
     seeds = [0,1,2]
 
@@ -99,5 +139,27 @@ if __name__ == "__main__":
         q = torch.randn(b, h, n, d, dtype=dtype) / d ** 0.5
         k = torch.randn(b, h, n, d, dtype=dtype) / d ** 0.5
         v = torch.randn(b, h, n, d, dtype=dtype) 
+
+
         error_0 = softmax_approx_error(q, k, order_list=[d,d])
-        print(n, error_0)
+
+
+        time1 = time.time()
+
+        actual_attn = actual_attention_output(q, k, v)
+
+
+        time2 = time.time()
+
+        approx_attn = approx_attention_output(q, k, v, order_list=[d,d])
+
+        time3 = time.time()
+
+        error_1 = relative_error(actual_attn, approx_attn, p='fro', dim=(-1,-2))
+
+
+        # for i, r in enumerate(n_list):
+
+        actual_time = time2 - time1
+        approx_time = time3 - time2
+        print(n, error_0, error_1, actual_time, approx_time)
