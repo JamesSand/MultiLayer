@@ -114,9 +114,10 @@ def approx_attention_output(q, k, v, order_list=[]):
 def actual_attention_output(q, k, v):
     attn_weights = torch.matmul(q, k.transpose(2, 3)) 
 
-    # attn_weights_norm = torch.matmul(attn_weights, torch.ones())
+    b, h, n, _ = attn_weights.shape
+    attn_weights_norm = torch.matmul(k.transpose(2, 3), torch.ones((b, h, n, 1), dtype=q.dtype, device=q.device))
 
-    # attn_weights = nn.functional.softmax(attn_weights, dim=-1)
+    attn_weights = attn_weights / attn_weights_norm.transpose(2, 3)
 
     attn_output = torch.matmul(attn_weights, v)
 
