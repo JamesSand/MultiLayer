@@ -94,11 +94,8 @@ if __name__ == "__main__":
     torch.manual_seed(seeds[2])
 
     for d in d_list:
-        n = 10 * 2**d
-        # q = torch.randn(b, h, n, d, dtype=dtype).cuda() / d ** 0.5
-        # k = torch.randn(b, h, n, d, dtype=dtype).cuda() / d ** 0.5
-        # v = torch.randn(b, h, n, d, dtype=dtype).cuda()
-
+        n = 10 * 2**d 
+        
         q = torch.randn(b, h, n, d, dtype=dtype) / d ** 0.5
         k = torch.randn(b, h, n, d, dtype=dtype) / d ** 0.5
         v = torch.randn(b, h, n, d, dtype=dtype) 
@@ -112,6 +109,14 @@ if __name__ == "__main__":
 
         actual_time = time2 - time1
         approx_time = time3 - time2
+        speedup = actual_time / approx_time
 
-        print(f"dim:{d}\trelative_error:{error_1.item():.5f}\tactual:{actual_time:.5f}s\tour:{approx_time:.5f}s")
+        # in percent
+        error_1 = error_1.item() * 100
+
+        # in ms
+        actual_time = actual_time * 1000
+        approx_time = approx_time * 1000
+
+        print(f"dim:{d}\tseq_len:{n}\trelative_error:{error_1:.3f}\tactual:{actual_time:.3f}\tour:{approx_time:.3f}\tspeedup:{speedup:.3f}")
 
